@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using MySql.Data.MySqlClient;
 
+
 namespace ChessBrowser.Components.Pages
 {
   public partial class ChessBrowser
@@ -28,6 +29,8 @@ namespace ChessBrowser.Components.Pages
     /// </summary>
     private int    Progress = 0;
 
+
+
     /// <summary>
     /// This method runs when a PGN file is selected for upload.
     /// Given a list of lines from the selected file, parses the 
@@ -40,20 +43,25 @@ namespace ChessBrowser.Components.Pages
       // assuimg you've filled in the credentials in the GUI
       string connection = GetConnectionString();
 
-      // TODO:
-      //   Parse the provided PGN data
-      //   We recommend creating separate libraries to represent chess data and load the file
+      // Parse all games from the PGN file
+      List<ChessGame> games = PgnParser.Parse(PGNFileLines);
 
+        // Track unique players and events to avoid duplicate inserts.
+        var players = new Dictionary<string, uint>();   // name  → pID
+        var events = new Dictionary<string, uint>();   // key   → eID
 
-      using (MySqlConnection conn = new MySqlConnection(connection))
+    using (MySqlConnection conn = new MySqlConnection(connection))
       {
         try
         {
           // Open a connection
           conn.Open();
 
-          // TODO:
-          //   Iterate through your data and generate appropriate insert commands
+         /* TODO:  Iterate through your data and generate appropriate insert commands */
+        // for (int i = 0; i < games.Count; i++)
+         // {
+               // ChessGame game = games[i];
+         //}
                    
           // TODO:
           //   Update the Progress member variable every time progress has been made
@@ -61,6 +69,7 @@ namespace ChessBrowser.Components.Pages
           //   This will update the progress bar in the GUI
           //   Its value should be an integer representing a percentage of completion
           Progress = 0;
+          // Progress = (int)(((double)(i + 1) / games.Count) * 100);
 
           // This tells the GUI to redraw after you update Progress (this should go inside your loop)
           await InvokeAsync(StateHasChanged);
@@ -168,6 +177,18 @@ namespace ChessBrowser.Components.Pages
       }
     }
 
-  }
+
+     /// <summary>
+     /// Parses a PGN file's lines into a list of ChessGame objects.
+      /// This method exists solely for unit testing the parsing logic,
+        /// independent of any database operations.
+        /// </summary>
+        /// <param name="PGNFileLines">The lines from a PGN file.</param>
+        /// <returns>A list of parsed ChessGame objects.</returns>
+        public List<ChessGame> ParsePGNFile(string[] PGNFileLines)
+        {
+            return PgnParser.Parse(PGNFileLines);
+        }
+    }
 
 }
