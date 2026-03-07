@@ -118,14 +118,24 @@ public static class PgnParser
     /// <summary>
     /// Parses a PGN date string (e.g. "2018.01.23") into a MySQL-compatible
     /// date string (e.g. "2018-01-23"). Returns "0000-00-00" for malformed dates.
+    /// Converts PGN date to MySQL format or "0000-00-00" for dirty/missing dates
     /// </summary>
+    // 
     private static string ParseDate(string date)
     {
-        if (string.IsNullOrWhiteSpace(date)) return "0000-00-00";
+        if (string.IsNullOrWhiteSpace(date))
+            return "0000-00-00";
 
         string[] parts = date.Split('.');
         if (parts.Length == 3)
-            return $"{parts[0]}-{parts[1]}-{parts[2]}";
+        {
+            // Use 00 for unknown month/day
+            string year = string.IsNullOrWhiteSpace(parts[0]) ? "0000" : parts[0];
+            string month = string.IsNullOrWhiteSpace(parts[1]) || parts[1] == "??" ? "00" : parts[1];
+            string day = string.IsNullOrWhiteSpace(parts[2]) || parts[2] == "??" ? "00" : parts[2];
+
+            return $"{year}-{month}-{day}";
+        }
 
         return "0000-00-00";
     }
