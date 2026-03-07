@@ -245,66 +245,93 @@ namespace ChessBrowser.Components.Pages
             conn.Open();
 
             string sql = @"
-                SELECT E.Name, E.Site, E.Date, 
+                SELECT E.Name, E.Site, E.Date,
                        PW.Name AS WhiteName, PW.Elo AS WhiteElo,
                        PB.Name AS BlackName, PB.Elo AS BlackElo,
                        G.Round, G.Result, G.Moves
                 FROM Games G
-                JOIN Events E  ON G.eID         = E.eID
+                JOIN Events E ON G.eID = E.eID
                 JOIN Players PW ON G.WhitePlayer = PW.pID
                 JOIN Players PB ON G.BlackPlayer = PB.pID
-                WHERE (@white   = '' OR PW.Name   = @white)
-                AND   (@black   = '' OR PB.Name   = @black)
-                AND   (@winner  = '' OR G.Result  = @winner)
-                AND   (@opening = '' OR G.Moves   LIKE @openingLike)"
-                + (useDate ? " AND (E.Date BETWEEN @start AND @end)" : "");
+                WHERE 1=1
+            ";
+            
+            if (!string.IsNullOrWhiteSpace(white))
+                sql += " AND PW.Name = @white";
 
-            using (MySqlCommand cmd = new MySqlCommand(sql, conn))
+            if (!string.IsNullOrWhiteSpace(black))
+                sql += " AND PB.Name = @black";
+
+            if (!string.IsNullOrWhiteSpace(winner))
+                sql += " AND G.Result = @winner";
+
+            if (!string.IsNullOrWhiteSpace(opening))
+                sql += " AND G.Moves LIKE @opening";
+
+            if (useDate)
+                sql += " AND E.Date BETWEEN @start AND @end";
+
+            using var cmd = new MySqlCommand(sql, conn);
+
+            if (!string.IsNullOrWhiteSpace(white))
+                cmd.Parameters.AddWithValue("@white", white);
+
+            if (!string.IsNullOrWhiteSpace(black))
+                cmd.Parameters.AddWithValue("@black", black);
+
+            if (!string.IsNullOrWhiteSpace(winner))
+                cmd.Parameters.AddWithValue("@winner", winner);
+
+            if (!string.IsNullOrWhiteSpace(opening))
+                cmd.Parameters.AddWithValue("@opening", opening + "%");
+
+            if (useDate)
             {
-                cmd.Parameters.AddWithValue("@white",       white);
-                cmd.Parameters.AddWithValue("@black",       black);
-                cmd.Parameters.AddWithValue("@winner",      winner);
-                cmd.Parameters.AddWithValue("@opening",     opening);
-                cmd.Parameters.AddWithValue("@openingLike", opening + "%");
-                if (useDate)
-                {
-                    cmd.Parameters.AddWithValue("@start", start.ToString("yyyy-MM-dd"));
-                    cmd.Parameters.AddWithValue("@end",   end.ToString("yyyy-MM-dd"));
-                }
+                cmd.Parameters.AddWithValue("@start", start);
+                cmd.Parameters.AddWithValue("@end", end);
+            }
 
-                using (MySqlDataReader reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
+            using var reader = cmd.ExecuteReader();
+
+            while (reader.Read())
                     {
                         numRows++;
 
                         string eventName = reader.GetString("Name");
-                        string site      = reader.GetString("Site");
+                        string site = reader.GetString("Site");
+                        string date;
+                        try 
+                            { date = reader.GetDateTime("Date").ToString("MM/dd/yyyy"); }
+                        catch 
+                            { date = "0000-00-00"; }
+
                         string whiteName = reader.GetString("WhiteName");
                         string blackName = reader.GetString("BlackName");
-                        string round     = reader.GetString("Round");
-                        string result    = reader.GetString("Result");
-                        string whiteElo  = reader.IsDBNull(reader.GetOrdinal("WhiteElo"))
-                                           ? "?" : reader.GetUInt32("WhiteElo").ToString();
-                        string blackElo  = reader.IsDBNull(reader.GetOrdinal("BlackElo"))
-                                           ? "?" : reader.GetUInt32("BlackElo").ToString();
 
-                        string dateStr;
-                        try   { dateStr = reader.GetDateTime("Date").ToString("yyyy-MM-dd"); }
-                        catch { dateStr = "0000-00-00"; }
+                        string whiteElo = reader.IsDBNull(reader.GetOrdinal("WhiteElo"))
+                            ? "?"
+                            : reader.GetInt32("WhiteElo").ToString();
 
-                        parsedResult +=
-                            $"Event: {eventName}, Site: {site}, Date: {dateStr}\n" +
-                            $"White: {whiteName} ({whiteElo}), Black: {blackName} ({blackElo})\n" +
-                            $"Round: {round}, Result: {result}\n";
+                        string blackElo = reader.IsDBNull(reader.GetOrdinal("BlackElo"))
+                            ? "?"
+                            : reader.GetInt32("BlackElo").ToString();
 
-                        if (showMoves)
+                        string result = reader.GetString("Result");
+
+                        parsedResult += $"Event: {eventName}/n";
+                        parsedResult += $"Site: {site}\n";
+                        parsedResult += $"Date: {date}\n";
+                        parsedResult += $"White: {whiteName} ({whiteElo})\n";
+                        parsedResult += $"Black: {blackName} ({blackElo})\n";
+                        parsedResult += $"Result: {result}\n";
+
+                        if (showMoves && !reader.IsDBNull(reader.GetOrdinal("Moves")))
+                        {
                             parsedResult += reader.GetString("Moves") + "\n";
+                        }
 
                         parsedResult += "\n";
                     }
-                }
-            }
         }
         catch (Exception e)
         {
