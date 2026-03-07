@@ -5,7 +5,7 @@
 // Project:     Team3Chess LMS
 // Description: Static utility class for parsing PGN-formatted chess game files
 //              into a list of ChessGame objects for database insertion.
-// Author:      [Your Name]
+// Author:      Aliou Tippett
 // Created:     2026-03-05
 // =============================================================================
 
