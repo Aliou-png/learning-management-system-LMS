@@ -2,3 +2,54 @@
 
 <PageTitle>About</PageTitle>
 
+@page "/"
+
+<PageTitle>About</PageTitle>
+
+<h3>Team 3 ChessBrowser</h3>
+
+<p><strong>Date:</strong> 03/06/2026</p>
+<p><strong>Authors:</strong> Owen Okolowitz and Aliou Tippett</p>
+
+<p>
+    The Team 3 ChessBrowser is a web application designed to explore, search, and visualize chess games stored in a MySQL database.
+    This page serves as the entry point for users, allowing them to access game data and interact with the application.
+</p>
+
+<h4>Features</h4>
+
+<p>
+    <strong>Search Functionality:</strong> Users can search for games by player (White or Black), opening move, or date.
+    Player names should be entered in the format <em>Last, First</em>, and the move field can contain multiple moves.
+</p>
+
+<p>
+    <strong>Filters:</strong> You can control the output of your search by enabling the <em>Show Moves</em> option at the bottom of the search page to include the move list for each game.
+</p>
+
+<p>
+    <strong>Upload Feature:</strong> Users can upload PGN files to add new chess games to the database.
+</p>
+
+<p>
+    Uploaded PGN files should follow the standard PGN format and include the main game metadata tags.
+    Each game should contain information such as the event, site, date, players, player ratings, and result, followed by the list of moves.
+    A typical PGN entry should look similar to the following:
+</p>
+
+<pre>
+[Event "Example Tournament"]
+[Site "New York USA"]
+[Date "2023.05.14"]
+[White "Carlsen, Magnus"]
+[Black "Nakamura, Hikaru"]
+[WhiteElo "2850"]
+[BlackElo "2780"]
+[Result "1-0"]
+
+1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 1-0
+</pre>
+
+<p>
+    Multiple games may be included in a single PGN file as long as each game follows this structure.
+</p>
