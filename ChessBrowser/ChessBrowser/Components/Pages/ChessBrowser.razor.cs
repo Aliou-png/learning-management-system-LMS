@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components.Forms;
-using System.Diagnostics;
 using MySql.Data.MySqlClient;
+using System.Data;
+using System.Diagnostics;
 
 
 namespace ChessBrowser.Components.Pages
@@ -50,39 +51,164 @@ namespace ChessBrowser.Components.Pages
         var players = new Dictionary<string, uint>();   // name  → pID
         var events = new Dictionary<string, uint>();   // key   → eID
 
-    using (MySqlConnection conn = new MySqlConnection(connection))
-      {
-        try
-        {
-          // Open a connection
-          conn.Open();
+        using (MySqlConnection conn = new MySqlConnection(connection))
+          {
+                try
+                {
+                    // Open a connection
+                    conn.Open();
 
-         /* TODO:  Iterate through your data and generate appropriate insert commands */
-        // for (int i = 0; i < games.Count; i++)
-         // {
-               // ChessGame game = games[i];
-         //}
-                   
-          // TODO:
-          //   Update the Progress member variable every time progress has been made
-          //   (e.g. one iteration of your upload loop)
-          //   This will update the progress bar in the GUI
-          //   Its value should be an integer representing a percentage of completion
-          Progress = 0;
-          // Progress = (int)(((double)(i + 1) / games.Count) * 100);
+                    for (int i = 0; i < games.Count; i++)
+                    {
+                        ChessGame game = games[i];
 
-          // This tells the GUI to redraw after you update Progress (this should go inside your loop)
-          await InvokeAsync(StateHasChanged);
-          
+                        uint whiteID;
+                        uint blackID;
+                        uint eventID;
+
+                        //WHITE PLAYER
+                        if (!players.TryGetValue(game.WhiteName, out whiteID))
+                        {
+                            var cmd = new MySqlCommand(
+                                "SELECT pID, Elo FROM Players WHERE Name=@name", conn);
+                            cmd.Parameters.AddWithValue("@name", game.WhiteName);
+
+                            using (var reader = cmd.ExecuteReader())
+                            {
+                                if (reader.Read())
+                                {
+                                    whiteID = reader.GetUInt32("pID");
+                                    uint? currentElo = reader.IsDBNull("Elo") ? null : reader.GetUInt32("Elo");
+                                    reader.Close();
+
+                                    if (game.WhiteElo.HasValue && (!currentElo.HasValue || game.WhiteElo > currentElo))
+                                    {
+                                        var update = new MySqlCommand(
+                                            "UPDATE Players SET Elo=@elo WHERE pID=@pid", conn);
+                                        update.Parameters.AddWithValue("@elo", game.WhiteElo);
+                                        update.Parameters.AddWithValue("@pid", whiteID);
+                                        update.ExecuteNonQuery();
+                                    }
+                                }
+                                else
+                                {
+                                    reader.Close();
+                                    var insert = new MySqlCommand(
+                                        "INSERT INTO Players(Name,Elo) VALUES(@name,@elo); SELECT LAST_INSERT_ID();",
+                                        conn);
+
+                                    insert.Parameters.AddWithValue("@name", game.WhiteName);
+                                    insert.Parameters.AddWithValue("@elo", game.WhiteElo);
+
+                                    whiteID = Convert.ToUInt32(insert.ExecuteScalar());
+                                }
+                            }
+
+                            players[game.WhiteName] = whiteID;
+
+                        }
+                        //BLACK PLAYER
+                        if (!players.TryGetValue(game.BlackName, out blackID))
+                        {
+                            var cmd = new MySqlCommand(
+                                "SELECT pID, Elo FROM Players WHERE Name=@name", conn);
+                            cmd.Parameters.AddWithValue("@name", game.BlackName);
+
+                            using (var reader = cmd.ExecuteReader())
+                            {
+                                if (reader.Read())
+                                {
+                                    blackID = reader.GetUInt32("pID");
+                                    uint? currentElo = reader.IsDBNull("Elo") ? null : reader.GetUInt32("Elo");
+                                    reader.Close();
+
+                                    if (game.BlackElo.HasValue && (!currentElo.HasValue || game.BlackElo > currentElo))
+                                    {
+                                        var update = new MySqlCommand(
+                                            "UPDATE Players SET Elo=@elo WHERE pID=@pid", conn);
+                                        update.Parameters.AddWithValue("@elo", game.BlackElo);
+                                        update.Parameters.AddWithValue("@pid", blackID);
+                                        update.ExecuteNonQuery();
+                                    }
+                                }
+                                else
+                                {
+                                    reader.Close();
+                                    var insert = new MySqlCommand(
+                                        "INSERT INTO Players(Name,Elo) VALUES(@name,@elo); SELECT LAST_INSERT_ID();",
+                                        conn);
+
+                                    insert.Parameters.AddWithValue("@name", game.BlackName);
+                                    insert.Parameters.AddWithValue("@elo", game.BlackElo);
+
+                                    blackID = Convert.ToUInt32(insert.ExecuteScalar());
+                                }
+                            }
+
+                            players[game.BlackName] = blackID;
+                        }
+
+                        //EVENT
+                        string eventKey = $"{game.EventName}|{game.Site}|{game.EventDate}";
+
+                        if (!events.TryGetValue(eventKey, out eventID))
+                        {
+                            var cmd = new MySqlCommand(
+                                "SELECT eID FROM Events WHERE Name=@name AND Site=@site AND Date=@date",
+                                conn);
+
+                            cmd.Parameters.AddWithValue("@name", game.EventName);
+                            cmd.Parameters.AddWithValue("@site", game.Site);
+                            cmd.Parameters.AddWithValue("@date", game.EventDate);
+
+                            var result = cmd.ExecuteScalar();
+
+                            if (result != null)
+                            {
+                                eventID = Convert.ToUInt32(result);
+                            }
+                            else
+                            {
+                                var insert = new MySqlCommand(
+                                    "INSERT INTO Events(Name,Site,Date) VALUES(@name,@site,@date); SELECT LAST_INSERT_ID();",
+                                    conn);
+
+                                insert.Parameters.AddWithValue("@name", game.EventName);
+                                insert.Parameters.AddWithValue("@site", game.Site);
+                                insert.Parameters.AddWithValue("@date", game.EventDate);
+
+                                eventID = Convert.ToUInt32(insert.ExecuteScalar());
+                            }
+
+                            events[eventKey] = eventID;
+                        }
+
+                        //INSERT GAME
+                        var insertGame = new MySqlCommand(
+                            @"INSERT INTO Games(Round, Result, Moves, BlackPlayer, WhitePlayer, eID)
+                            VALUES (@round,@result,@moves,@black,@white,@eid)", conn);
+
+                        insertGame.Parameters.AddWithValue("@round", game.Round);
+                        insertGame.Parameters.AddWithValue("@result", game.Result);
+                        insertGame.Parameters.AddWithValue("@moves", game.Moves);
+                        insertGame.Parameters.AddWithValue("@black", blackID);
+                        insertGame.Parameters.AddWithValue("@white", whiteID);
+                        insertGame.Parameters.AddWithValue("@eid", eventID);
+
+                        insertGame.ExecuteNonQuery();
+
+                        //UPDATE PROGRESS
+                        Progress = (int)(((double)(i + 1) / games.Count) * 100);
+                        await InvokeAsync(StateHasChanged);
+                    }
+                }
+                catch (Exception e)
+                {
+                    System.Diagnostics.Debug.WriteLine(e.Message);
+                }
+          }
 
         }
-        catch (Exception e)
-        {
-          System.Diagnostics.Debug.WriteLine(e.Message);
-        }
-      }
-
-    }
 
 
     /// <summary>
@@ -116,12 +242,69 @@ namespace ChessBrowser.Components.Pages
       {
         try
         {
-          // Open a connection
-          conn.Open();
+            conn.Open();
 
-          // TODO:
-          //   Generate and execute an SQL command,
-          //   then parse the results into an appropriate string and return it.
+            string sql = @"
+                SELECT E.Name, E.Site, E.Date, 
+                       PW.Name AS WhiteName, PW.Elo AS WhiteElo,
+                       PB.Name AS BlackName, PB.Elo AS BlackElo,
+                       G.Round, G.Result, G.Moves
+                FROM Games G
+                JOIN Events E  ON G.eID         = E.eID
+                JOIN Players PW ON G.WhitePlayer = PW.pID
+                JOIN Players PB ON G.BlackPlayer = PB.pID
+                WHERE (@white   = '' OR PW.Name   = @white)
+                AND   (@black   = '' OR PB.Name   = @black)
+                AND   (@winner  = '' OR G.Result  = @winner)
+                AND   (@opening = '' OR G.Moves   LIKE @openingLike)"
+                + (useDate ? " AND (E.Date BETWEEN @start AND @end)" : "");
+
+            using (MySqlCommand cmd = new MySqlCommand(sql, conn))
+            {
+                cmd.Parameters.AddWithValue("@white",       white);
+                cmd.Parameters.AddWithValue("@black",       black);
+                cmd.Parameters.AddWithValue("@winner",      winner);
+                cmd.Parameters.AddWithValue("@opening",     opening);
+                cmd.Parameters.AddWithValue("@openingLike", opening + "%");
+                if (useDate)
+                {
+                    cmd.Parameters.AddWithValue("@start", start.ToString("yyyy-MM-dd"));
+                    cmd.Parameters.AddWithValue("@end",   end.ToString("yyyy-MM-dd"));
+                }
+
+                using (MySqlDataReader reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        numRows++;
+
+                        string eventName = reader.GetString("Name");
+                        string site      = reader.GetString("Site");
+                        string whiteName = reader.GetString("WhiteName");
+                        string blackName = reader.GetString("BlackName");
+                        string round     = reader.GetString("Round");
+                        string result    = reader.GetString("Result");
+                        string whiteElo  = reader.IsDBNull(reader.GetOrdinal("WhiteElo"))
+                                           ? "?" : reader.GetUInt32("WhiteElo").ToString();
+                        string blackElo  = reader.IsDBNull(reader.GetOrdinal("BlackElo"))
+                                           ? "?" : reader.GetUInt32("BlackElo").ToString();
+
+                        string dateStr;
+                        try   { dateStr = reader.GetDateTime("Date").ToString("yyyy-MM-dd"); }
+                        catch { dateStr = "0000-00-00"; }
+
+                        parsedResult +=
+                            $"Event: {eventName}, Site: {site}, Date: {dateStr}\n" +
+                            $"White: {whiteName} ({whiteElo}), Black: {blackName} ({blackElo})\n" +
+                            $"Round: {round}, Result: {result}\n";
+
+                        if (showMoves)
+                            parsedResult += reader.GetString("Moves") + "\n";
+
+                        parsedResult += "\n";
+                    }
+                }
+            }
         }
         catch (Exception e)
         {
