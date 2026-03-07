@@ -245,12 +245,12 @@ namespace ChessBrowser.Components.Pages
             conn.Open();
 
             string sql = @"
-                SELECT E.Name, E.Site, E.Date,
-                       PW.Name AS WhiteName, PW.Elo AS WhiteElo,
-                       PB.Name AS BlackName, PB.Elo AS BlackElo,
+               SELECT E.Name AS EventName, E.Site, E.Date, 
+                       PW.Name AS WhiteName, PW.Elo AS WhiteElo, 
+                       PB.Name AS BlackName, PB.Elo AS BlackElo, 
                        G.Round, G.Result, G.Moves
                 FROM Games G
-                JOIN Events E ON G.eID = E.eID
+                JOIN Events E  ON G.eID         = E.eID
                 JOIN Players PW ON G.WhitePlayer = PW.pID
                 JOIN Players PB ON G.BlackPlayer = PB.pID
                 WHERE 1=1
@@ -297,7 +297,7 @@ namespace ChessBrowser.Components.Pages
                     {
                         numRows++;
 
-                        string eventName = reader.GetString("Name");
+                        string eventName = reader.GetString("EventName");
                         string site = reader.GetString("Site");
                         string date;
                         try 
