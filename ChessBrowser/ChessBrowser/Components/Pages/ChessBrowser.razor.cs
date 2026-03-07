@@ -165,28 +165,36 @@ namespace ChessBrowser.Components.Pages
 
                             if (result != null)
                             {
+                                // Event exists, use its ID
                                 eventID = Convert.ToUInt32(result);
                             }
                             else
                             {
+                                // Event doesn't exist, insert it and get the new auto-increment ID
                                 var insert = new MySqlCommand(
-                                    "INSERT INTO Events(Name,Site,Date) VALUES(@name,@site,@date); SELECT LAST_INSERT_ID();",
+                                    "INSERT INTO Events(Name, Site, Date) VALUES(@name, @site, @date); SELECT LAST_INSERT_ID();",
                                     conn);
 
                                 insert.Parameters.AddWithValue("@name", game.EventName);
                                 insert.Parameters.AddWithValue("@site", game.Site);
                                 insert.Parameters.AddWithValue("@date", game.EventDate);
 
+                                // LAST_INSERT_ID() returns the newly assigned eID
                                 eventID = Convert.ToUInt32(insert.ExecuteScalar());
                             }
 
+                            // Cache the event ID
                             events[eventKey] = eventID;
                         }
 
-                        //INSERT GAME
+                        // INSERT GAME
                         var insertGame = new MySqlCommand(
                             @"INSERT INTO Games(Round, Result, Moves, BlackPlayer, WhitePlayer, eID)
-                            VALUES (@round,@result,@moves,@black,@white,@eid)", conn);
+                          VALUES (@round, @result, @moves, @black, @white, @eid)
+                          ON DUPLICATE KEY UPDATE Moves = @moves, Result = @result", conn);
+
+                        // IMPORTANT: must use 'on dubplicate key update' to avoid inserting
+                        // duplicate games when the same PGN file is uploaded multiple times
 
                         insertGame.Parameters.AddWithValue("@round", game.Round);
                         insertGame.Parameters.AddWithValue("@result", game.Result);
@@ -389,7 +397,7 @@ namespace ChessBrowser.Components.Pages
 
 
      /// <summary>
-     /// Parses a PGN file's lines into a list of ChessGame objects.
+     /// FOR TESTING ONLY: Parses a PGN file's lines into a list of ChessGame objects.
       /// This method exists solely for unit testing the parsing logic,
         /// independent of any database operations.
         /// </summary>
