@@ -4,7 +4,7 @@
 // Description: Model class representing a chess game played between two players
 //              at a specific event. Maps to the Games table in the Team3Chess
 //              database.
-// Author:      [Your Name]
+// Author:      Aliou Tippett and Owen Okolowitz
 // Created:     2026-03-05
 // =============================================================================
 

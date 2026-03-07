@@ -5,7 +5,7 @@
 // Project:     Team3Chess LMS
 // Description: Data model representing a single chess game parsed from a PGN
 //              file, including player info, event metadata, and move sequence.
-// Author:      [Your Name]
+// Author:      Owen Okolowitz and Aliou Tippett
 // Created:     2026-03-05
 // =============================================================================
 
