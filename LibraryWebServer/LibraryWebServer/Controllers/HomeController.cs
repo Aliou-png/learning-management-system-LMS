@@ -77,8 +77,31 @@ namespace LibraryWebServer.Controllers
         {
 
             // TODO: Implement
+            // want the format ISBN, Title, Author, Serial, Name:
+            var results = _DBcontext.Inventory
+                .GroupJoin(_DBcontext.Titles,
+                    i => i.Isbn,
+                    t => t.Isbn,
+                    (i, t) => new { i, t })
+                .SelectMany(it => it.t.DefaultIfEmpty(),
+                    (it, t) => new { it.i, t })
+                .GroupJoin(_DBcontext.CheckedOut,
+                    it => it.i.Serial,
+                    c => c.Serial,
+                    (it, c) => new { it, c })
+                .SelectMany(itc => itc.c.DefaultIfEmpty(),
+                    (itc, c) => new { itc.it.i, itc.it.t, c })
+                .GroupJoin(_DBcontext.Patrons,
+                    itc => itc.c.CardNum,
+                    p => p.CardNum,
+                    (itc, p) => new { itc, p })
+                .SelectMany(itcp => itcp.p.DefaultIfEmpty(),
+                // Jason is expecting a Null name to be a blank string.
+                    (itcp, p) => new { itcp.itc.i.Isbn, itcp.itc.t.Title, itcp.itc.t.Author, 
+                     itcp.itc.i.Serial, Name = p == null ? "" : p.Name })
+                .ToList();
 
-            return Json( null );
+            return Json(results);
 
         }
 
