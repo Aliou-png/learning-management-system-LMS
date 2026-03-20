@@ -18,6 +18,9 @@ namespace LibraryWebServer.Controllers
 
         private readonly ILogger<HomeController> _logger;
 
+        // private variable for accessing the DB
+        private readonly Team3LibraryContext _DBcontext;
+
 
         /// <summary>
         /// Given a Patron name and CardNum, verify that they exist and match in the database.
@@ -32,7 +35,9 @@ namespace LibraryWebServer.Controllers
         public IActionResult CheckLogin( string name, int cardnum )
         {
             // TODO: Fill in. Determine if login is successful or not.
-            bool loginSuccessful = false;
+           // bool loginSuccessful = false;
+            bool loginSuccessful = _DBcontext.Patrons
+                .Any(p => p.Name == name && p.CardNum == cardnum);
 
             if ( !loginSuccessful )
             {
@@ -108,7 +113,6 @@ namespace LibraryWebServer.Controllers
         {
             // You may have to cast serial to a (uint)
 
-
             return Json( new { success = true } );
         }
 
@@ -168,9 +172,12 @@ namespace LibraryWebServer.Controllers
             return View();
         }
 
-        public HomeController( ILogger<HomeController> logger )
+        // Added Team3LibraryContext context parameter so ASP.NET can inject the database
+        // and assigned it to _DBcontext so the controller can query the database
+        public HomeController(ILogger<HomeController> logger, Team3LibraryContext context)
         {
             _logger = logger;
+            _DBcontext = context;
         }
 
         public IActionResult Privacy()

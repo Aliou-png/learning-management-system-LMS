@@ -1,3 +1,7 @@
+using LibraryWebServer.Models;
+using Microsoft.EntityFrameworkCore;
+using LibraryWebServer.Models;
+
 namespace LibraryWebServer
 {
   public class Program
@@ -9,7 +13,12 @@ namespace LibraryWebServer
       // Add services to the container.
       builder.Services.AddControllersWithViews();
 
-      var app = builder.Build();
+            builder.Services.AddDbContext<Team3LibraryContext>(options =>
+         options.UseMySql(
+            "server=atr.eng.utah.edu;user id=u1415075;password=CS_5530_2026;database=Team3Library",
+            Microsoft.EntityFrameworkCore.ServerVersion.Parse("10.11.16-mariadb")
+         ));
+            var app = builder.Build();
 
       // Configure the HTTP request pipeline.
       if ( !app.Environment.IsDevelopment() )
