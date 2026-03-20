@@ -151,10 +151,26 @@ namespace LibraryWebServer.Controllers
         [HttpPost]
         public ActionResult CheckOutBook( int serial )
         {
-            // You may have to cast serial to a (uint)
+            // create a new checked out item. so we can create a row.
+            try
+            {
+                CheckedOut newCheckout = new CheckedOut
+            {
+                Serial = (uint)serial,
+                CardNum = (uint)card
+            };
 
-            return Json( new { success = true } );
-        }
+                _DBcontext.CheckedOut.Add(newCheckout);
+                _DBcontext.SaveChanges();
+
+            return Json(new { success = true });
+            }
+            catch (Exception) 
+            {
+                return Json(new { success = false });
+            }
+
+}
 
         /// <summary>
         /// Returns a book currently checked out by the logged in user (global variable "card").
