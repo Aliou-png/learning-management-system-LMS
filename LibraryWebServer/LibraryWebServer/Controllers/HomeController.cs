@@ -1,4 +1,12 @@
-﻿using LibraryWebServer.Models;
+﻿// Author: Aliou Tippett (u1415075), 
+// Date: March 2026
+// Course: CS 5530
+//
+// This file implements the HomeController for the Library Web Server.
+// It scaffolds model code from an existing MySQL database, queries the 
+// models using LINQ, and returns JSON representations for web display.
+
+using LibraryWebServer.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -75,8 +83,6 @@ namespace LibraryWebServer.Controllers
         [HttpPost]
         public ActionResult AllTitles()
         {
-
-            // TODO: Implement
             // want the format ISBN, Title, Author, Serial, Name:
             var results = _DBcontext.Inventory
                 .GroupJoin(_DBcontext.Titles,
