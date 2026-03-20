@@ -34,8 +34,6 @@ namespace LibraryWebServer.Controllers
         [HttpPost]
         public IActionResult CheckLogin( string name, int cardnum )
         {
-            // TODO: Fill in. Determine if login is successful or not.
-           // bool loginSuccessful = false;
             bool loginSuccessful = _DBcontext.Patrons
                 .Any(p => p.Name == name && p.CardNum == cardnum);
 
@@ -95,8 +93,27 @@ namespace LibraryWebServer.Controllers
         [HttpPost]
         public ActionResult ListMyBooks()
         {
-            // TODO: Implement
-            return Json( null );
+            // Need the Order "title": ..., "author": ..., "serial":...
+            // Joind Patrons => CheckedOut => Inventory => Titles
+            var results = _DBcontext.Patrons
+                .Join(_DBcontext.CheckedOut,
+                    p => p.CardNum,
+                    c => c.CardNum,
+                    (p, c) => new { p, c })
+                .Join(_DBcontext.Inventory,
+                    pc => pc.c.Serial,
+                    i => i.Serial,
+                    (pc, i) => new { pc, i })
+                .Join(_DBcontext.Titles,
+                    pci => pci.i.Isbn,
+                    t => t.Isbn,
+                    // create a final tables (note with cardnum so we can match the card num)
+                    (pci, t) => new { t.Title, t.Author, pci.i.Serial, pci.pc.p.CardNum })
+                .Where(x => x.CardNum == card)
+                .Select(x => new { x.Title, x.Author, x.Serial }) // only select the things we need to display
+                .ToList();
+
+            return Json(results);
         }
 
 
