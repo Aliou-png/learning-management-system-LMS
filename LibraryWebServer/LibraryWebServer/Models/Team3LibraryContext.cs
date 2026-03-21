@@ -28,7 +28,8 @@ public partial class Team3LibraryContext : DbContext
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         if (!optionsBuilder.IsConfigured)
-            optionsBuilder.UseMySql("server=atr.eng.utah.edu;user id=u1415075;password=CS_5530_2026;database=Team3Library",
+            // Replace Password for testing:
+            optionsBuilder.UseMySql("server=atr.eng.utah.edu;user id=u1415075;password=pwd;database=Team3Library",
                 Microsoft.EntityFrameworkCore.ServerVersion.Parse("10.11.16-mariadb"));
     }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
