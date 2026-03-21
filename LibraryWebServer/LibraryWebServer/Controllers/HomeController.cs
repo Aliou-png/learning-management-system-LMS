@@ -188,9 +188,26 @@ namespace LibraryWebServer.Controllers
         [HttpPost]
         public ActionResult ReturnBook( int serial )
         {
-            // You may have to cast serial to a (uint)
+            try
+            {
+                
+                var record = _DBcontext.CheckedOut
+                    .FirstOrDefault(c => c.Serial == (uint)serial && c.CardNum == (uint)card);
+               
+                if (record == null)
+                {
+                    return Json(new { success = false });
+                }
 
-            return Json( new { success = true } );
+                _DBcontext.CheckedOut.Remove(record);
+                _DBcontext.SaveChanges();
+
+                return Json(new { success = true });
+            }
+            catch (Exception)
+            {
+                return Json(new { success = false });
+            }
         }
 
 
