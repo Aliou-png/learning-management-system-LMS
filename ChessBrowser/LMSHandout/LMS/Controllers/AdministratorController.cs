@@ -1,11 +1,15 @@
-﻿using System;
+﻿using LMS.Models.LMSModels;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using MySqlConnector;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Threading.Tasks;
-using LMS.Models.LMSModels;
-using Microsoft.AspNetCore.Mvc;
+using System.Xml.Linq;
 
 // For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 [assembly: InternalsVisibleTo( "LMSControllerTests" )]
@@ -17,7 +21,7 @@ namespace LMS.Controllers
 
         public AdministratorController(LMSContext _db)
         {
-            db = _db;
+            db = _db; // db context
         }
 
         // GET: /<controller>/
@@ -50,10 +54,25 @@ namespace LMS.Controllers
         /// false if the department already exists, true otherwise.</returns>
         public IActionResult CreateDepartment(string subject, string name)
         {
-            
-            return Json(new { success = false});
+            try
+            {
+                // step 1: create a new dapartment item so we can add a row:
+                Department dept = new Department()
+                {
+                    Subject = subject,
+                    Name = name,
+                    Students = new HashSet<Student>()
+                };
+                db.Departments.Add(dept);
+                db.SaveChanges();
+                return Json(new { success = false });
+            }
+            catch (Exception)
+            {
+                // failed: already exits or somthing
+                return Json(new { success = false });
+            }
         }
-
 
         /// <summary>
         /// Returns a JSON array of all the courses in the given department.
@@ -65,8 +84,12 @@ namespace LMS.Controllers
         /// <returns>The JSON result</returns>
         public IActionResult GetCourses(string subject)
         {
-            
-            return Json(null);
+
+            var courses = db.Courses.Where( c => c.Subject == subject )
+                .Select( c => new { number = c.Num, name = c.Name } )
+                .ToList();
+
+            return Json(courses);
         }
 
         /// <summary>
@@ -80,9 +103,11 @@ namespace LMS.Controllers
         /// <returns>The JSON result</returns>
         public IActionResult GetProfessors(string subject)
         {
-            
-            return Json(null);
-            
+            var professors = db.Professors.Where( p => p.Subject == subject )
+                .Select( p => new { lname = p.LastName, fname = p.FirstName, uid = p.UId } )
+                .ToList();
+            return Json(professors);
+           
         }
 
 
@@ -98,7 +123,29 @@ namespace LMS.Controllers
         /// false if the course already exists, true otherwise.</returns>
         public IActionResult CreateCourse(string subject, int number, string name)
         {           
-            return Json(new { success = false });
+            try
+            {
+                // step 1: create a new Course item so we can add a row:
+                Course course = new Course()
+                {
+                    CourseId = 0,
+                    Name = name,
+                    Num = (uint)number,
+                    Subject = subject,
+                    Classes = new HashSet<Class>(),
+                    // this can be null if the department doesn't exist, but we can still add the course and fix it later:
+                    SubjectNavigation = db.Departments.Where( d => d.Subject == subject ).FirstOrDefault()
+                };
+
+                db.Courses.Add(course);
+                db.SaveChanges();
+                return Json(new { success = false });
+            }
+            catch (Exception)
+            {
+                // failed: already exits or somthing
+                return Json(new { success = false });
+            }
         }
 
 
@@ -120,8 +167,38 @@ namespace LMS.Controllers
         /// a Class offering of the same Course in the same Semester,
         /// true otherwise.</returns>
         public IActionResult CreateClass(string subject, int number, string season, int year, DateTime start, DateTime end, string location, string instructor)
-        {            
-            return Json(new { success = false});
+        {
+            try
+            {
+                // step 1: create a new class item so we can add a row:
+                Class newclass = new Class()
+                {
+                    ClassId = 0,
+                    SemesterSeason = season,
+                    SemesterYear = (uint)year,
+                    Start = TimeOnly.FromDateTime(start),
+                    End = TimeOnly.FromDateTime(end), 
+                    Location = location,
+                    Professor = instructor,
+                    AssignmentCategories = new HashSet<AssignmentCategory>(),
+                    Enrolleds = new HashSet<Enrolled>(),
+
+                    // these can be null if the course or professor doesn't exist, but we can still add the class and fix it later:
+                    CourseId = db.Courses.Where( c => c.Subject == subject && c.Num == number ).FirstOrDefault().CourseId,
+                    Course = db.Courses.Where(c => c.Subject == subject && c.Num == number).FirstOrDefault(), 
+                    ProfessorNavigation = db.Professors.Where( p => p.UId == instructor ).FirstOrDefault(),
+
+                };
+
+                db.Classes.Add(newclass);
+                db.SaveChanges();
+                return Json(new { success = false });
+            }
+            catch (Exception)
+            {
+                // failed: already exits or somthing
+                return Json(new { success = false });
+            }
         }
 
 
