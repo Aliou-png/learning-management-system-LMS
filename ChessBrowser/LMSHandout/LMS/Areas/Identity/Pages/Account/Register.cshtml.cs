@@ -194,6 +194,25 @@ namespace LMS.Areas.Identity.Pages.Account
         /// <returns>The uID of the new user</returns>
         string CreateNewUser( string firstName, string lastName, DateTime DOB, string departmentAbbrev, string role )
         {
+            try
+            {
+                // u 0 000 000
+                // step 1: create a new dapartment item so we can add a row:
+                Department dept = new Department()
+                {
+                    Subject = subject,
+                    Name = name,
+                    Students = new HashSet<Student>()
+                };
+                db.Departments.Add(dept);
+                db.SaveChanges();
+                return Json(new { success = false });
+            }
+            catch (Exception)
+            {
+                // failed: already exits or somthing
+                return Json(new { success = false });
+            }
             return "unknown";
         }
 

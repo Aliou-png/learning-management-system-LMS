@@ -34,6 +34,7 @@ namespace LMS.Models.LMSModels
         public virtual DbSet<Sshkey> Sshkeys { get; set; } = null!;
         public virtual DbSet<Student> Students { get; set; } = null!;
         public virtual DbSet<Submission> Submissions { get; set; } = null!;
+        public virtual DbSet<UidCounter> UidCounters { get; set; } = null!;
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -487,6 +488,15 @@ namespace LMS.Models.LMSModels
                     .WithMany(p => p.Submissions)
                     .HasForeignKey(d => d.UId)
                     .HasConstraintName("fk_submission_student");
+            });
+
+            modelBuilder.Entity<UidCounter>(entity =>
+            {
+                entity.ToTable("UID_Counter");
+
+                entity.Property(e => e.Id)
+                    .HasColumnType("int(10) unsigned")
+                    .HasColumnName("id");
             });
 
             OnModelCreatingPartial(modelBuilder);
