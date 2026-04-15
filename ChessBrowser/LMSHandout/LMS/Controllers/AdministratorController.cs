@@ -61,7 +61,6 @@ namespace LMS.Controllers
                 {
                     Subject = subject,
                     Name = name,
-                    Students = new HashSet<Student>()
                 };
                 db.Departments.Add(dept);
                 db.SaveChanges();

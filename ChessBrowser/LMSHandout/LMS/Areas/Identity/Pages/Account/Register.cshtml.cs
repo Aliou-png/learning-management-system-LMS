@@ -128,13 +128,21 @@ namespace LMS.Areas.Identity.Pages.Account
         {
             ReturnUrl = returnUrl;
             ExternalLogins = ( await _signInManager.GetExternalAuthenticationSchemesAsync() ).ToList();
-
-
+            
+            // get the departments for the dropdown menue
+            Input.Departments = db.Departments
+            .Select(d => new SelectListItem
+            {
+                Value = d.Subject,
+                Text = d.Name
+            })
+            .ToList();
 
         }
 
         public async Task<IActionResult> OnPostAsync( string returnUrl = null )
         {
+
             returnUrl ??= Url.Content( "~/" );
             ExternalLogins = ( await _signInManager.GetExternalAuthenticationSchemesAsync() ).ToList();
             if ( ModelState.IsValid )
@@ -161,6 +169,15 @@ namespace LMS.Areas.Identity.Pages.Account
                     ModelState.AddModelError( string.Empty, error.Description );
                 }
             }
+
+            // againg incase the validation fails
+            Input.Departments = db.Departments
+            .Select(d => new SelectListItem
+            {
+                Value = d.Subject,
+                Text = d.Name
+            })
+            .ToList();
 
             // If we got this far, something failed, redisplay form
             return Page();
@@ -194,26 +211,68 @@ namespace LMS.Areas.Identity.Pages.Account
         /// <returns>The uID of the new user</returns>
         string CreateNewUser( string firstName, string lastName, DateTime DOB, string departmentAbbrev, string role )
         {
+            // IMPORTANT create a transaction scope to ensure that all database operations within this function are atomic.
+            using var transaction = db.Database.BeginTransaction();
             try
             {
-                // u 0 000 000
-                // step 1: create a new dapartment item so we can add a row:
-                Department dept = new Department()
-                {
-                    Subject = subject,
-                    Name = name,
-                    Students = new HashSet<Student>()
-                };
-                db.Departments.Add(dept);
+                // step 1: create a new uique id for the user:
+                UidCounter newID = new UidCounter();
+                db.UidCounters.Add(newID);
                 db.SaveChanges();
-                return Json(new { success = false });
+                string uid = "u" + newID.Id.ToString("D7"); // format it
+               
+                switch (role)
+                {
+                    case "Professor":
+                        Professor newProf = new Professor()
+                        {
+                            UId = uid,
+                            FirstName = firstName,
+                            LastName = lastName,
+                            Dob = DateOnly.FromDateTime(DOB),
+                            Classes = new HashSet<Class>(),
+                            Subject = departmentAbbrev
+                            // can ignore the SubjectNavigation: 
+                        };
+                        db.Professors.Add(newProf);
+                        break;
+                    case "Administrator":
+                        Administrator newAdministrator = new Administrator()
+                        {
+                            UId = uid,
+                            FirstName = firstName,
+                            LastName = lastName,
+                            Dob = DateOnly.FromDateTime(DOB)
+                        };
+                        db.Administrators.Add(newAdministrator);
+                        break;
+
+                    case "Student":
+                        Student newStudent = new Student()
+                        {
+                            UId = uid,
+                            FirstName = firstName,
+                            LastName = lastName,
+                            Dob = DateOnly.FromDateTime(DOB),
+                            Enrolleds = new HashSet<Enrolled>(),
+                            Subject = departmentAbbrev 
+                        };
+                        db.Students.Add(newStudent);
+                        break;
+
+                    default:
+                        throw new Exception("Invalid input value"); // error: invalid role
+                }
+
+                db.SaveChanges();  // save final changes to the database, but they won't be visible outside this function until we commit the transaction
+                transaction.Commit(); // no errors, commit the transaction
+                return uid;
             }
             catch (Exception)
             {
-                // failed: already exits or somthing
-                return Json(new { success = false });
+                transaction.Rollback(); // something went wrong, roll back any database changes
+                throw;
             }
-            return "unknown";
         }
 
         /*******End code to modify********/
