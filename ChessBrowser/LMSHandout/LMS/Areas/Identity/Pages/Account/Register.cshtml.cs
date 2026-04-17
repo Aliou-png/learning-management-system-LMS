@@ -170,7 +170,7 @@ namespace LMS.Areas.Identity.Pages.Account
                 }
             }
 
-            // againg incase the validation fails
+            // load departments again incase the validation fails
             Input.Departments = db.Departments
             .Select(d => new SelectListItem
             {
@@ -211,7 +211,7 @@ namespace LMS.Areas.Identity.Pages.Account
         /// <returns>The uID of the new user</returns>
         string CreateNewUser( string firstName, string lastName, DateTime DOB, string departmentAbbrev, string role )
         {
-            // IMPORTANT create a transaction scope to ensure that all database operations within this function are atomic.
+            // IMPORTANT: create a transaction scope to ensure that all database operations within this function are atomic.
             using var transaction = db.Database.BeginTransaction();
             try
             {

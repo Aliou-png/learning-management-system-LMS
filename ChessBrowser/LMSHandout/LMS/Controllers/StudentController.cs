@@ -75,8 +75,45 @@ namespace LMS.Controllers
         /// <param name="uid">The uid of the student</param>
         /// <returns>The JSON array</returns>
         public IActionResult GetMyClasses(string uid)
-        {           
-            return Json(null);
+        {
+            // need to Hoin three tables:
+            // Enrolled.ClassID --> Classes.classID --> Classes.courseID --> Courses.courseID
+            /*Example SQL query:
+                 SELECT 
+                    c.Subject,
+                    cl.classID,
+                    c.Name AS course_name,
+                    cl.semester_season AS Season,
+                    cl.semester_year AS Year,
+                    e.Grade
+                FROM Enrolled e
+                JOIN Classes cl 
+                    ON e.ClassID = cl.classID
+                JOIN Courses c 
+                    ON cl.courseID = c.courseID
+                WHERE e.uID = 'uID';
+            */
+            var student_classes = db.Enrolleds.
+                    Join(db.Classes,
+                        e => e.ClassId, 
+                        cl => cl.ClassId, 
+                        (e, cl) => new { e, cl })
+                    .Join(db.Courses, 
+                        ec => ec.cl.CourseId, 
+                        c => c.CourseId, 
+                        (ec, c) => new { ec.e, ec.cl, c })
+                    .Where(ecc => ecc.e.UId == uid)
+                .Select(ecc => new
+                {
+                    subject = ecc.c.Subject,
+                    number = ecc.c.Num,
+                    name = ecc.c.Name,
+                    season = ecc.cl.SemesterSeason,
+                    year = ecc.cl.SemesterYear,
+                    grade = ecc.e.Grade
+                }).ToList();
+
+            return Json(student_classes);
         }
 
         /// <summary>
@@ -118,9 +155,78 @@ namespace LMS.Controllers
         /// <param name="contents">The text contents of the student's submission</param>
         /// <returns>A JSON object containing {success = true/false}</returns>
         public IActionResult SubmitAssignmentText(string subject, int num, string season, int year,
-          string category, string asgname, string uid, string contents)
-        {           
-            return Json(new { success = false });
+     string category, string asgname, string uid, string contents)
+        {
+            try // Safty to protect againt errors: 
+            {
+                // 1. Find course
+                var course = db.Courses
+                    .FirstOrDefault(c => c.Subject == subject && c.Num == num);
+
+                if (course == null) 
+                    return Json(new { success = false }); // course not found
+
+                // 2. Find class
+                var cls = db.Classes
+                    .FirstOrDefault(cl =>
+                        cl.CourseId == course.CourseId &&
+                        cl.SemesterSeason == season &&
+                        cl.SemesterYear == year);
+
+                if (cls == null)
+                    return Json(new { success = false }); // class does not exist
+
+                // 3. Find category
+                var cat = db.AssignmentCategories
+                    .FirstOrDefault(ac =>
+                        ac.ClassId == cls.ClassId &&
+                        ac.Category == category);
+
+                if (cat == null)
+                    return Json(new { success = false }); // catagory does not exist
+
+                // 4. Find assignment
+                var asg = db.Assignments
+                    .FirstOrDefault(a =>
+                        a.CategoryId == cat.CategoryId &&
+                        a.Name == asgname);
+
+                if (asg == null)
+                    return Json(new { success = false }); // assignment does not exist
+
+                // 5. Check for existing submission
+                var sub = db.Submissions
+                    .FirstOrDefault(s =>
+                        s.AssignmentId == asg.AssignmentId &&
+                        s.UId == uid);
+
+                if (sub != null)
+                {
+                    // Update existing submission (keep score)
+                    sub.Content = contents;
+                    sub.Submitted = DateTime.Now;
+                }
+                else
+                {
+                    // Create new submission
+                    db.Submissions.Add(new Submission
+                    {
+                        AssignmentId = asg.AssignmentId,
+                        UId = uid,
+                        Content = contents,
+                        Submitted = DateTime.Now,
+                        Score = 0 // start at 0 until graded
+                    });
+                }
+
+                db.SaveChanges(); // must do last incase or and error.
+
+                return Json(new { success = true });
+            }
+            catch
+            {
+                return Json(new { success = false });
+            }
         }
 
 
@@ -135,8 +241,49 @@ namespace LMS.Controllers
         /// <returns>A JSON object containing {success = {true/false}. 
         /// false if the student is already enrolled in the class, true otherwise.</returns>
         public IActionResult Enroll(string subject, int num, string season, int year, string uid)
-        {          
-            return Json(new { success = false});
+        {
+            try // protect against errors such as invalid course or class information, or database errors
+            {
+                // Step 1: find the course
+                var course = db.Courses
+                .FirstOrDefault(c => c.Subject == subject && c.Num == num);
+
+                if (course == null)
+                    return Json(new { success = false });
+
+                // Step 2: find the class
+                var cls = db.Classes
+                    .FirstOrDefault(cl =>
+                        cl.CourseId == course.CourseId &&
+                        cl.SemesterSeason == season &&
+                        cl.SemesterYear == year);
+
+                if (cls == null)
+                    return Json(new { success = false });
+
+                // Step 3: check if the student is already enrolled
+                bool alreadyEnrolled = db.Enrolleds.Any(e =>
+                    e.UId == uid && e.ClassId == cls.ClassId);
+
+                if (alreadyEnrolled) // already enrolled
+                    return Json(new { success = false });
+
+                // Step 4: Enroll the student
+                var enrollment = new Enrolled
+                {
+                    UId = uid,
+                    ClassId = cls.ClassId,
+                    // Note the Defaut for Grade is null
+                };
+
+                db.Enrolleds.Add(enrollment);
+                db.SaveChanges();
+
+                return Json(new { success = true });
+            } catch
+            {
+                return Json(new { success = false });
+            }
         }
 
 
@@ -153,12 +300,63 @@ namespace LMS.Controllers
         /// <param name="uid">The uid of the student</param>
         /// <returns>A JSON object containing a single field called "gpa" with the number value</returns>
         public IActionResult GetGPA(string uid)
-        {            
-            return Json(null);
+        {
+
+            // find all the grade for a given uID:
+            var grades = db.Enrolleds
+                .Where(e => e.UId == uid)
+                .Select(e => e.Grade)
+                .ToList();
+
+            double total = 0;
+            int count = 0;
+
+            // go through the list of grades and convert each letter to a corrisponging value:
+            foreach (var g in grades)
+            {
+                double pts = GradeToPoints(g);
+                if (pts >= 0)
+                {
+                    total += pts;
+                    count++;
+                }
+            }
+
+            double gpa = count > 0 ? total / count : 0;
+            return Json(new
+            {
+                success = count > 0,
+                gpa = count > 0 ? Math.Round(gpa) : 0 // round for consistant decimal places
+            });
         }
-                
+
         /*******End code to modify********/
 
+        /// <summary>
+        /// Helper method for calculating the grade point value of a given letter grade
+        /// </summary>
+        /// <param name="grade"> letter grade </param>
+        /// <returns> point value out of 4.0 scale: -1 if not grade given</returns>
+        double GradeToPoints(string grade)
+        {
+            return grade switch
+            {
+                "A" => 4.0,
+                "A-" => 3.7,
+                "B+" => 3.3,
+                "B" => 3.0,
+                "B-" => 2.7,
+                "C+" => 2.3,
+                "C" => 2.0,
+                "C-" => 1.7,
+                "D+" => 1.3,
+                "D" => 1.0,
+                "D-" => 0.7,
+                "F" => 0.0,
+                _ => -1 // invalid / not graded
+            };
+        }
     }
-}
+
+    }
 
