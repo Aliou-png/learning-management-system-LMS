@@ -82,8 +82,34 @@ namespace LMS.Controllers
         /// <param name="number">The course number, as in 5530</param>
         /// <returns>The JSON array</returns>
         public IActionResult GetClassOfferings(string subject, int number)
-        {            
-            return Json(null);
+        {
+            // We fetch the data first, then format the times in memory to avoid 
+            // EF Core getting angry about string formatting translation.
+            var offerings = db.Classes
+                .Where(c => c.Course.Subject == subject && c.Course.Num == number)
+                .Select(c => new
+                {
+                    season = c.SemesterSeason,
+                    year = c.SemesterYear,
+                    location = c.Location,
+                    start = c.Start,
+                    end = c.End,
+                    fname = c.ProfessorNavigation.FirstName,
+                    lname = c.ProfessorNavigation.LastName
+                })
+                .ToList()
+                .Select(c => new
+                {
+                    season = c.season,
+                    year = c.year,
+                    location = c.location,
+                    start = c.start.ToString("HH:mm:ss"), // format the TimeOnly object
+                    end = c.end.ToString("HH:mm:ss"),
+                    fname = c.fname,
+                    lname = c.lname
+                });
+
+            return Json(offerings);
         }
 
         /// <summary>
