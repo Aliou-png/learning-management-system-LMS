@@ -157,7 +157,28 @@ namespace LMS_CustomIdentity.Controllers
         /// <returns>The JSON array</returns>
         public IActionResult GetAssignmentsInCategory(string subject, int num, string season, int year, string category)
         {
-            return Json(null);
+            var query = db.Assignments
+                .Where(a => a.CategoryNavigation.ClassNavigation.Course.Subject == subject &&
+                            a.CategoryNavigation.ClassNavigation.Course.Num == num &&
+                            a.CategoryNavigation.ClassNavigation.SemesterSeason == season &&
+                            a.CategoryNavigation.ClassNavigation.SemesterYear == year);
+
+            if (!string.IsNullOrEmpty(category))
+            {
+                query = query.Where(a => a.CategoryNavigation.Name == category);
+            }
+
+            var assignments = query
+                .Select(a => new
+                {
+                    aname = a.Name,
+                    cname = a.CategoryNavigation.Name,
+                    due = a.Due,
+                    submissions = a.Submissions.Count()
+                })
+                .ToList();
+
+            return Json(assignments);
         }
 
 
