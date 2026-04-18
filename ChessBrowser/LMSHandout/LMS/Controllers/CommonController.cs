@@ -125,8 +125,18 @@ namespace LMS.Controllers
         /// <param name="asgname">The name of the assignment in the category</param>
         /// <returns>The assignment contents</returns>
         public IActionResult GetAssignmentContents(string subject, int num, string season, int year, string category, string asgname)
-        {            
-            return Content("");
+        {
+            var contents = db.Assignments
+                .Where(a => a.Name == asgname &&
+                            a.CategoryNavigation.Name == category &&
+                            a.CategoryNavigation.ClassNavigation.SemesterSeason == season &&
+                            a.CategoryNavigation.ClassNavigation.SemesterYear == year &&
+                            a.CategoryNavigation.ClassNavigation.Course.Num == num &&
+                            a.CategoryNavigation.ClassNavigation.Course.Subject == subject)
+                .Select(a => a.Contents)
+                .FirstOrDefault();
+
+            return Content(contents ?? "");
         }
 
 
@@ -145,8 +155,19 @@ namespace LMS.Controllers
         /// <param name="uid">The uid of the student who submitted it</param>
         /// <returns>The submission text</returns>
         public IActionResult GetSubmissionText(string subject, int num, string season, int year, string category, string asgname, string uid)
-        {            
-            return Content("");
+        {
+            var text = db.Submissions
+                .Where(s => s.Student == uid &&
+                            s.AssignmentNavigation.Name == asgname &&
+                            s.AssignmentNavigation.CategoryNavigation.Name == category &&
+                            s.AssignmentNavigation.CategoryNavigation.ClassNavigation.SemesterSeason == season &&
+                            s.AssignmentNavigation.CategoryNavigation.ClassNavigation.SemesterYear == year &&
+                            s.AssignmentNavigation.CategoryNavigation.ClassNavigation.Course.Num == num &&
+                            s.AssignmentNavigation.CategoryNavigation.ClassNavigation.Course.Subject == subject)
+                .Select(s => s.SubmissionContents)
+                .FirstOrDefault();
+
+            return Content(text ?? "");
         }
 
 
@@ -167,7 +188,39 @@ namespace LMS.Controllers
         /// or an object containing {success: false} if the user doesn't exist
         /// </returns>
         public IActionResult GetUser(string uid)
-        {           
+        {
+            // Since we don't know the role, we have to check all three tables.
+
+            // 1. Check if they are a student
+            var student = db.Students.Where(s => s.UId == uid).Select(s => new {
+                fname = s.FirstName,
+                lname = s.LastName,
+                uid = s.UId,
+                department = s.SubjectNavigation.Name
+            }).FirstOrDefault();
+
+            if (student != null) return Json(student);
+
+            // 2. Check if they are a professor
+            var prof = db.Professors.Where(p => p.UId == uid).Select(p => new {
+                fname = p.FirstName,
+                lname = p.LastName,
+                uid = p.UId,
+                department = p.SubjectNavigation.Name
+            }).FirstOrDefault();
+
+            if (prof != null) return Json(prof);
+
+            // 3. Check if they are an administrator (no department field needed)
+            var admin = db.Administrators.Where(a => a.UId == uid).Select(a => new {
+                fname = a.FirstName,
+                lname = a.LastName,
+                uid = a.UId
+            }).FirstOrDefault();
+
+            if (admin != null) return Json(admin);
+
+            // 4. User not found
             return Json(new { success = false });
         }
 
