@@ -29,8 +29,12 @@ namespace LMS.Controllers
         /// </summary>
         /// <returns>The JSON array</returns>
         public IActionResult GetDepartments()
-        {            
-            return Json(null);
+        {
+            var depts = db.Departments
+                .Select(d => new { name = d.Name, subject = d.Subject })
+                .ToList();
+
+            return Json(depts);
         }
 
 
@@ -47,8 +51,20 @@ namespace LMS.Controllers
         /// </summary>
         /// <returns>The JSON array</returns>
         public IActionResult GetCatalog()
-        {            
-            return Json(null);
+        {
+            var catalog = db.Departments
+                .Select(d => new
+                {
+                    subject = d.Subject,
+                    dname = d.Name,
+                    courses = d.Courses.Select(c => new
+                    {
+                        number = c.Num,
+                        cname = c.Name
+                    })
+                })
+                .ToList();
+                    return Json(catalog);
         }
 
         /// <summary>
