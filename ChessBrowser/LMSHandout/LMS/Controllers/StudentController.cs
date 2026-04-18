@@ -370,7 +370,7 @@ namespace LMS.Controllers
             return Json(new
             {
                 success = count > 0,
-                gpa = count > 0 ? Math.Round(gpa) : 0 // round for consistant decimal places
+                gpa = count > 0 ? Math.Round(gpa, 2) : 0 // round for consistant decimal places
             });
         }
 

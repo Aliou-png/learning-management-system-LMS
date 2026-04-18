@@ -118,7 +118,23 @@ namespace LMS_CustomIdentity.Controllers
         /// <returns>The JSON array</returns>
         public IActionResult GetStudentsInClass(string subject, int num, string season, int year)
         {
-            return Json(null);
+            var students = db.Enrolleds
+                .Where(e =>
+                    e.Class.Course.Subject == subject &&
+                    e.Class.Course.Num == num &&
+                    e.Class.SemesterSeason == season &&
+                    e.Class.SemesterYear == year)
+                .Select(e => new
+                {
+                    fname = e.UIdNavigation.FirstName,
+                    lname = e.UIdNavigation.LastName,
+                    uid = e.UId,
+                    dob = e.UIdNavigation.Dob,
+                    grade = e.Grade
+                })
+                .ToList();
+
+            return Json(students);
         }
 
 
