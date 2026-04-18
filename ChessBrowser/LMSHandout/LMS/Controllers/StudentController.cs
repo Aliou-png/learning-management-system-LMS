@@ -267,9 +267,6 @@ namespace LMS.Controllers
             }
         }
 
-
-        
-        
         
         /// <summary>
         /// Enrolls a student in a class.
@@ -314,7 +311,7 @@ namespace LMS.Controllers
                 {
                     UId = uid,
                     ClassId = cls.ClassId,
-                    // Note the Defaut for Grade is null
+                    Grade = "--"
                 };
 
                 db.Enrolleds.Add(enrollment);

@@ -120,11 +120,10 @@ namespace LMS_CustomIdentity.Controllers
         {
             var students = db.Enrolleds
                 .Where(e =>
-                    .Where(e =>
-                        e.ClassNavigation.CourseNavigation.Subject == subject &&
-                        e.ClassNavigation.CourseNavigation.Num == num &&
-                        e.ClassNavigation.SemesterSeason == season &&
-                        e.ClassNavigation.SemesterYear == year)
+                    e.Class.Course.Subject == subject &&
+                    e.Class.Course.Num == num &&
+                    e.Class.SemesterSeason == season &&
+                    e.Class.SemesterYear == year)
                 .Select(e => new
                 {
                     fname = e.UIdNavigation.FirstName,
@@ -159,21 +158,21 @@ namespace LMS_CustomIdentity.Controllers
         public IActionResult GetAssignmentsInCategory(string subject, int num, string season, int year, string category)
         {
             var query = db.Assignments
-                .Where(a => a.CategoryNavigation.ClassNavigation.Course.Subject == subject &&
-                            a.CategoryNavigation.ClassNavigation.Course.Num == num &&
-                            a.CategoryNavigation.ClassNavigation.SemesterSeason == season &&
-                            a.CategoryNavigation.ClassNavigation.SemesterYear == year);
+                .Where(a => a.Category.Class.Course.Subject == subject &&
+                            a.Category.Class.Course.Num == num &&
+                            a.Category.Class.SemesterSeason == season &&
+                            a.Category.Class.SemesterYear == year);
 
             if (!string.IsNullOrEmpty(category))
             {
-                query = query.Where(a => a.CategoryNavigation.Category == category);
+                query = query.Where(a => a.Category.Category == category);
             }
 
             var assignments = query
                 .Select(a => new
                 {
                     aname = a.Name,
-                    cname = a.CategoryNavigation.Category,
+                    cname = a.Category.Category,
                     due = a.Due,
                     submissions = a.Submissions.Count()
                 })
@@ -199,10 +198,10 @@ namespace LMS_CustomIdentity.Controllers
         {
             var cats = db.AssignmentCategories
                 .Where(c =>
-                    c.ClassNavigation.Course.Subject == subject &&
-                    c.ClassNavigation.Course.Num == num &&
-                    c.ClassNavigation.SemesterSeason == season &&
-                    c.ClassNavigation.SemesterYear == year)
+                    c.Class.Course.Subject == subject &&
+                    c.Class.Course.Num == num &&
+                    c.Class.SemesterSeason == season &&
+                    c.Class.SemesterYear == year)
                 .Select(c => new
                 {
                     name = c.Category, 
@@ -228,8 +227,8 @@ namespace LMS_CustomIdentity.Controllers
         {
             var cls = db.Classes
                  .FirstOrDefault(c =>
-                     c.CourseNavigation.Subject == subject &&
-                     c.CourseNavigation.Num == num &&
+                     c.Course.Subject == subject &&
+                     c.Course.Num == num &&
                      c.SemesterSeason == season &&
                      c.SemesterYear == year);
 
@@ -242,7 +241,7 @@ namespace LMS_CustomIdentity.Controllers
             db.AssignmentCategories.Add(new AssignmentCategory
             {
                 Category = category,        // not Name
-                Weight = (uint)catweight,
+                Weight = (Byte)catweight,
                 ClassId = cls.ClassId       // not InClass
             });
 
@@ -263,43 +262,42 @@ namespace LMS_CustomIdentity.Controllers
         /// <param name="asgdue">The due DateTime for the new assignment</param>
         /// <param name="asgcontents">The contents of the new assignment</param>
         /// <returns>A JSON object containing success = true/false</returns>
-        public IActionResult CreateAssignment(string subject, int num, string season, int year, string category, string asgname, int asgpoints, DateTime asgdue, string asgcontents)
+        public IActionResult CreateAssignment(string subject, int num, string season, int year,
+    string category, string asgname, int asgpoints, DateTime asgdue, string asgcontents)
         {
-            var cat = db.AssignmentCategories
-           .FirstOrDefault(c =>
-               c.Category == category &&
-               c.ClassNavigation.Course.Subject == subject &&
-               c.ClassNavigation.Course.Num == num &&
-               c.ClassNavigation.SemesterSeason == season &&
-               c.ClassNavigation.SemesterYear == year);
-
-            if (cat == null)
-                return Json(new { success = false });
-
-            if (db.Assignments.Any(a => a.Name == asgname && a.CategoryId == cat.CategoryId))
-                return Json(new { success = false });
-
-            db.Assignments.Add(new Assignment
+            try
             {
-                Name = asgname,
-                MaxPoints = (uint)asgpoints,
-                Due = asgdue,
-                Contents = asgcontents,
-                CategoryId = cat.CategoryId
-            });
+                var cat = db.AssignmentCategories
+                    .FirstOrDefault(c =>
+                        c.Category == category &&
+                        c.Class.Course.Subject == subject &&
+                        c.Class.Course.Num == num &&
+                        c.Class.SemesterSeason == season &&
+                        c.Class.SemesterYear == year);
 
-            db.SaveChanges();
+                if (cat == null)
+                    return Json(new { success = false });
 
-            var students = db.Enrolleds
-                .Where(e => e.ClassId == cat.ClassId)
-                .Select(e => e.UId)
-                .ToList();
+                if (db.Assignments.Any(a => a.Name == asgname && a.CategoryId == cat.CategoryId))
+                    return Json(new { success = false });
 
-            foreach (var s in students)
-                UpdateStudentGrade(cat.ClassId, s);
+                db.Assignments.Add(new Assignment
+                {
+                    Name = asgname,
+                    Points = (ushort)asgpoints,
+                    Due = asgdue,
+                    Content = asgcontents,
+                    CategoryId = cat.CategoryId
+                });
 
-            db.SaveChanges();
-            return Json(new { success = true });
+                db.SaveChanges();
+
+                return Json(new { success = true });
+            }
+            catch
+            {
+                return Json(new { success = false });
+            }
         }
 
 
@@ -324,18 +322,18 @@ namespace LMS_CustomIdentity.Controllers
         {
             var subs = db.Submissions
                 .Where(s =>
-                    s.AssignmentNavigation.Name == asgname &&
-                    s.AssignmentNavigation.CategoryNavigation.Category == category &&  // not .Name
-                    s.AssignmentNavigation.CategoryNavigation.ClassNavigation.Course.Subject == subject &&
-                    s.AssignmentNavigation.CategoryNavigation.ClassNavigation.Course.Num == num &&
-                    s.AssignmentNavigation.CategoryNavigation.ClassNavigation.SemesterSeason == season &&
-                    s.AssignmentNavigation.CategoryNavigation.ClassNavigation.SemesterYear == year)
+                    s.Assignment.Name == asgname &&
+                    s.Assignment.Category.Category == category &&  // not .Name
+                    s.Assignment.Category.Class.Course.Subject == subject &&
+                    s.Assignment.Category.Class.Course.Num == num &&
+                    s.Assignment.Category.Class.SemesterSeason == season &&
+                    s.Assignment.Category.Class.SemesterYear == year)
                 .Select(s => new
                 {
-                    fname = s.StudentNavigation.FirstName,
-                    lname = s.StudentNavigation.LastName,
-                    uid = s.Student,      // not s.UId
-                    time = s.Time,        // not s.Submitted
+                    fname = s.UIdNavigation.FirstName,
+                    lname = s.UIdNavigation.LastName,
+                    uid = s.UIdNavigation.UId,      // not s.UId
+                    time = s.Submitted,        // not s.Submitted
                     score = s.Score
                 })
                 .ToList();
@@ -359,13 +357,13 @@ namespace LMS_CustomIdentity.Controllers
         public IActionResult GradeSubmission(string subject, int num, string season, int year, string category, string asgname, string uid, int score)
         {
             var sub = db.Submissions.FirstOrDefault(s =>
-                s.Student == uid &&
-                s.AssignmentNavigation.Name == asgname &&
-                s.AssignmentNavigation.CategoryNavigation.Category == category &&
-                s.AssignmentNavigation.CategoryNavigation.ClassNavigation.Course.Subject == subject &&
-                s.AssignmentNavigation.CategoryNavigation.ClassNavigation.Course.Num == num &&
-                s.AssignmentNavigation.CategoryNavigation.ClassNavigation.SemesterSeason == season &&
-                s.AssignmentNavigation.CategoryNavigation.ClassNavigation.SemesterYear == year);
+                s.UIdNavigation.UId == uid &&
+                s.Assignment.Name == asgname &&
+                s.Assignment.Category.Category == category &&
+                s.Assignment.Category.Class.Course.Subject == subject &&
+                s.Assignment.Category.Class.Course.Num == num &&
+                s.Assignment.Category.Class.SemesterSeason == season &&
+                s.Assignment.Category.Class.SemesterYear == year);
 
             if (sub == null)
                 return Json(new { success = false });
@@ -373,7 +371,7 @@ namespace LMS_CustomIdentity.Controllers
             sub.Score = (uint)score;  // cast needed
             db.SaveChanges();
 
-            uint classId = sub.AssignmentNavigation.CategoryNavigation.ClassId;  // uint not int
+            uint classId = sub.Assignment.Category.ClassId;  // uint not int
             UpdateStudentGrade(classId, uid);
 
             db.SaveChanges();
@@ -399,9 +397,9 @@ namespace LMS_CustomIdentity.Controllers
                 .Where(c => c.Professor == uid)
                 .Select(c => new
                 {
-                    subject = c.CourseNavigation.Subject,
-                    number = c.CourseNavigation.Num,
-                    name = c.CourseNavigation.Name,
+                    subject = c.Course.Subject,
+                    number = c.Course.Num,
+                    name = c.Course.Name,
                     season = c.SemesterSeason,
                     year = c.SemesterYear
                 })
@@ -433,20 +431,20 @@ namespace LMS_CustomIdentity.Controllers
 
                 foreach (var asg in assignments)
                 {
-                    possible += asg.MaxPoints;
+                    possible += asg.Points;
 
                     var sub = db.Submissions
-                        .FirstOrDefault(s => s.Assignment == asg.AssignmentId && s.Student == uid);
+                        .FirstOrDefault(s => s.Assignment.AssignmentId == asg.AssignmentId && s.UIdNavigation.UId == uid);
 
                     if (sub != null)
-                        earned += sub.Score;
+                        earned += (double)sub.Score;
                 }
 
                 if (possible == 0) continue;
 
                 double percent = earned / possible;
-                totalWeighted += percent * cat.Weight;
-                totalWeights += cat.Weight;
+                totalWeighted += percent * (double)cat.Weight;
+                totalWeights += (double)cat.Weight;
             }
 
             string letter = "--";

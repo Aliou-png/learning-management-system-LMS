@@ -103,8 +103,8 @@ namespace LMS.Controllers
                     season = c.season,
                     year = c.year,
                     location = c.location,
-                    start = c.start.ToString("HH:mm:ss"), // format the TimeOnly object
-                    end = c.end.ToString("HH:mm:ss"),
+                    start = c.start.ToString(),     // ToString("HH:mm:ss"), // format the TimeOnly object
+                    end = c.end.ToString(),         //ToString("HH:mm:ss"),
                     fname = c.fname,
                     lname = c.lname
                 });
@@ -128,12 +128,12 @@ namespace LMS.Controllers
         {
             var contents = db.Assignments
                 .Where(a => a.Name == asgname &&
-                            a.CategoryNavigation.Name == category &&
-                            a.CategoryNavigation.ClassNavigation.SemesterSeason == season &&
-                            a.CategoryNavigation.ClassNavigation.SemesterYear == year &&
-                            a.CategoryNavigation.ClassNavigation.Course.Num == num &&
-                            a.CategoryNavigation.ClassNavigation.Course.Subject == subject)
-                .Select(a => a.Contents)
+                            a.Category.Category == category &&
+                            a.Category.Class.SemesterSeason == season &&
+                            a.Category.Class.SemesterYear == year &&
+                            a.Category.Class.Course.Num == num &&
+                            a.Category.Class.Course.Subject == subject)
+                .Select(a => a.Content)
                 .FirstOrDefault();
 
             return Content(contents ?? "");
@@ -157,14 +157,14 @@ namespace LMS.Controllers
         public IActionResult GetSubmissionText(string subject, int num, string season, int year, string category, string asgname, string uid)
         {
             var text = db.Submissions
-                .Where(s => s.Student == uid &&
-                            s.AssignmentNavigation.Name == asgname &&
-                            s.AssignmentNavigation.CategoryNavigation.Name == category &&
-                            s.AssignmentNavigation.CategoryNavigation.ClassNavigation.SemesterSeason == season &&
-                            s.AssignmentNavigation.CategoryNavigation.ClassNavigation.SemesterYear == year &&
-                            s.AssignmentNavigation.CategoryNavigation.ClassNavigation.Course.Num == num &&
-                            s.AssignmentNavigation.CategoryNavigation.ClassNavigation.Course.Subject == subject)
-                .Select(s => s.SubmissionContents)
+                .Where(s => s.UIdNavigation.UId == uid &&
+                            s.Assignment.Name == asgname &&
+                            s.Assignment.Category.Category == category &&
+                            s.Assignment.Category.Class.SemesterSeason == season &&
+                            s.Assignment.Category.Class.SemesterYear == year &&
+                            s.Assignment.Category.Class.Course.Num == num &&
+                            s.Assignment.Category.Class.Course.Subject == subject)
+                .Select(s => s.Content)
                 .FirstOrDefault();
 
             return Content(text ?? "");

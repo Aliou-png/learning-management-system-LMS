@@ -138,7 +138,7 @@ namespace LMS.Controllers
 
                 db.Courses.Add(course);
                 db.SaveChanges();
-                return Json(new { success = false });
+                return Json(new { success = true });
             }
             catch (Exception)
             {
@@ -191,7 +191,7 @@ namespace LMS.Controllers
 
                 db.Classes.Add(newclass);
                 db.SaveChanges();
-                return Json(new { success = false });
+                return Json(new { success = true });
             }
             catch (Exception)
             {
