@@ -131,10 +131,48 @@ namespace LMS.Controllers
         /// <param name="uid"></param>
         /// <returns>The JSON array</returns>
         public IActionResult GetAssignmentsInClass(string subject, int num, string season, int year, string uid)
-        {            
-            return Json(null);
-        }
+        {
+            // 1. Find course
+            var course = db.Courses
+                .FirstOrDefault(c => c.Subject == subject && c.Num == num);
 
+            if (course == null)
+                return Json(null); // course not found
+
+            // 2. Find class
+            var cls = db.Classes
+                .FirstOrDefault(cl =>
+                    cl.CourseId == course.CourseId &&
+                    cl.SemesterSeason == season &&
+                    cl.SemesterYear == year);
+
+            if (cls == null)
+                return Json(null ); // class does not exist
+
+            // 3. Ensure student is enrolled
+            bool enrolled = db.Enrolleds.Any(e =>
+                e.UId == uid && e.ClassId == cls.ClassId);
+
+            if (!enrolled)
+                return Json(null); // student not enrolled
+
+            // 4. Query assignments with LEFT JOIN to submissions
+            var result = db.Assignments
+                .Where(a => a.Category.ClassId == cls.ClassId)
+                .Select(a => new
+                {
+                    aname = a.Name,
+                    cname = a.Category.Category,
+                    due = a.Due,
+                    score = db.Submissions
+                        .Where(s => s.AssignmentId == a.AssignmentId && s.UId == uid)
+                        .Select(s => (int?)s.Score)
+                        .FirstOrDefault()
+                })
+                .ToList();
+
+            return Json(result);
+        }
 
 
         /// <summary>
@@ -155,7 +193,7 @@ namespace LMS.Controllers
         /// <param name="contents">The text contents of the student's submission</param>
         /// <returns>A JSON object containing {success = true/false}</returns>
         public IActionResult SubmitAssignmentText(string subject, int num, string season, int year,
-     string category, string asgname, string uid, string contents)
+        string category, string asgname, string uid, string contents)
         {
             try // Safty to protect againt errors: 
             {
@@ -230,6 +268,9 @@ namespace LMS.Controllers
         }
 
 
+        
+        
+        
         /// <summary>
         /// Enrolls a student in a class.
         /// </summary>
@@ -288,6 +329,9 @@ namespace LMS.Controllers
 
 
 
+       
+        
+        
         /// <summary>
         /// Calculates a student's GPA
         /// A student's GPA is determined by the grade-point representation of the average grade in all their classes.

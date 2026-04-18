@@ -64,7 +64,7 @@ namespace LMS.Controllers
                 };
                 db.Departments.Add(dept);
                 db.SaveChanges();
-                return Json(new { success = false });
+                return Json(new { success = true });
             }
             catch (Exception)
             {
